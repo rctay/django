@@ -720,6 +720,25 @@ view. Templates can override or extend base admin templates as described in
 If you don't specify this attribute, a default template shipped with Django
 that provides the standard appearance is used.
 
+.. attribute:: ModelAdmin.action_template
+
+.. versionadded:: 1.2
+
+Path to a custom template that will be used to display actions in the model
+objects "change list" view.
+
+If you don't specify this attribute, a default template shipped with Django
+that provides the standard appearance is used.
+
+.. note::
+
+    The default action template is not extensible-friendly; therefore, if you
+    wish to customize it, you should replace it, as described in
+    `Overriding Admin Templates`_. For each submit button in your template, set
+    its name to `index` and its value to the tag ``{% get_action_index %}``
+    (provided in the `admin_list` template library); this is so that Django can
+    determine which action form was submitted by the user.
+
 .. attribute:: ModelAdmin.add_form_template
 
 .. versionadded:: 1.2
@@ -1340,6 +1359,7 @@ app or per model. The following can:
     * ``app_index.html``
     * ``change_form.html``
     * ``change_list.html``
+    * ``actions.html``
     * ``delete_confirmation.html``
     * ``object_history.html``
 
