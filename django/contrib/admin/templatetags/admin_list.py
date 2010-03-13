@@ -13,7 +13,7 @@ from django.utils.safestring import mark_safe
 from django.utils.text import capfirst
 from django.utils.translation import ugettext as _
 from django.utils.encoding import smart_unicode, force_unicode
-from django.template import Library
+from django.template import Library, Node
 
 
 register = Library()
@@ -267,11 +267,15 @@ def admin_list_filter(cl, spec):
     return {'title': spec.title(), 'choices' : list(spec.choices(cl))}
 admin_list_filter = register.inclusion_tag('admin/filter.html')(admin_list_filter)
 
-def admin_actions(context):
+class GetActionIndexNode(Node):
+    def render(self, context):
+        context['action_index'] = context.get('action_index', -1) + 1
+        return context['action_index']
+
+@register.tag
+def get_action_index(parser, token):
     """
     Track the number of times the action field has been rendered on the page,
     so we know which value to use.
     """
-    context['action_index'] = context.get('action_index', -1) + 1
-    return context
-admin_actions = register.inclusion_tag("admin/actions.html", takes_context=True)(admin_actions)
+    return GetActionIndexNode()
