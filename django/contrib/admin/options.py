@@ -13,6 +13,7 @@ from django.db import models, transaction
 from django.db.models.fields import BLANK_CHOICE_DASH
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render_to_response
+from django.template.loader import find_template
 from django.utils.decorators import method_decorator
 from django.utils.datastructures import SortedDict
 from django.utils.functional import update_wrapper
@@ -211,6 +212,7 @@ class ModelAdmin(BaseModelAdmin):
     # Actions
     actions = []
     action_form = helpers.ActionForm
+    action_template = None
     actions_on_top = True
     actions_on_bottom = False
     actions_selection_counter = True
@@ -1034,8 +1036,27 @@ class ModelAdmin(BaseModelAdmin):
         if actions:
             action_form = self.action_form(auto_id=None)
             action_form.fields['action'].choices = self.get_action_choices(request)
+
+            # Do this even though self.action_template might be empty to avoid
+            # variable-not-defined errors.
+            action_template = self.action_template
+            if not action_template:
+                for t in [
+                    'admin/%s/%s/actions.html' % (app_label, opts.object_name.lower()),
+                    'admin/%s/actions.html' % app_label,
+                    'admin/actions.html'
+                ]:
+                    try:
+                        find_template(t)
+
+                        # Template file was found; use it.
+                        action_template = t
+                        break
+                    except template.TemplateDoesNotExist:
+                        continue
         else:
             action_form = None
+            action_template = None
 
         selection_note = ungettext('of %(count)d selected',
             'of %(count)d selected', len(cl.result_list))
@@ -1054,6 +1075,7 @@ class ModelAdmin(BaseModelAdmin):
             'root_path': self.admin_site.root_path,
             'app_label': app_label,
             'action_form': action_form,
+            'action_template': action_template,
             'actions_on_top': self.actions_on_top,
             'actions_on_bottom': self.actions_on_bottom,
             'actions_selection_counter': self.actions_selection_counter,

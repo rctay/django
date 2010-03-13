@@ -88,9 +88,9 @@
       {% endif %}
 
       {% block result_list %}
-          {% if action_form and actions_on_top and cl.full_result_count %}{% include "admin/actions.html" %}{% endif %}
+          {% if action_form and actions_on_top and cl.full_result_count %}{% include action_template %}{% endif %}
           {% result_list cl %}
-          {% if action_form and actions_on_bottom and cl.full_result_count %}{% include "admin/actions.html" %}{% endif %}
+          {% if action_form and actions_on_bottom and cl.full_result_count %}{% include action_template %}{% endif %}
       {% endblock %}
       {% block pagination %}{% pagination cl %}{% endblock %}
       </form>
