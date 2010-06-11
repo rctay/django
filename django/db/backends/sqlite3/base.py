@@ -176,6 +176,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
 
         if Database.sqlite_version_info >= (3,6,8):
             self.features.uses_savepoints = True
+        self._default_isolation_level = None
 
     def _cursor(self):
         if self.connection is None:
@@ -189,12 +190,33 @@ class DatabaseWrapper(BaseDatabaseWrapper):
             }
             kwargs.update(settings_dict['OPTIONS'])
             self.connection = Database.connect(**kwargs)
+            self._default_isolation_level = self.connection.isolation_level
             # Register extract, date_trunc, and regexp functions.
             self.connection.create_function("django_extract", 2, _sqlite_extract)
             self.connection.create_function("django_date_trunc", 2, _sqlite_date_trunc)
             self.connection.create_function("regexp", 2, _sqlite_regexp)
             connection_created.send(sender=self.__class__)
         return self.connection.cursor(factory=SQLiteCursorWrapper)
+
+    def _enter_transaction_management(self, managed):
+        """
+        If savepoints are allowed, switch the isolation_level to None.
+
+        However, this implies autocommits, so begin a transaction explicitly -
+        django assumes non-autocommits.
+        """
+        if managed and self.features.uses_savepoints:
+            cursor = self._cursor()
+            cursor.connection.isolation_level = None
+            cursor.execute('BEGIN TRANSACTION')
+
+    def _leave_transaction_management(self, managed):
+        """
+        If savepoints are allowed, we're now in autocommit mode - switch the
+        isolation_level back to the default one.
+        """
+        if managed and self.features.uses_savepoints and self.connection.isolation_level is None:
+            self.connection.isolation_level = self._default_isolation_level
 
     def close(self):
         # If database is in memory, closing the connection destroys the
