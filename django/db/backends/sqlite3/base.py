@@ -54,16 +54,9 @@ if Database.version_info >= (2,4,1):
     Database.register_adapter(str, lambda s:s.decode('utf-8'))
     Database.register_adapter(SafeString, lambda s:s.decode('utf-8'))
 
-savepoints = False
+uses_savepoints = False
 if Database.sqlite_version_info >= (3,6,8):
-    savepoints = True
-
-def savepoint_dec(func):
-    def _dec(*args, **kwargs):
-        if not savepoints:
-            raise NotImplementedError
-        return func(*args, **kwargs)
-    return _dec
+    uses_savepoints = True
 
 class DatabaseFeatures(BaseDatabaseFeatures):
     # SQLite cannot handle us only partially reading from a cursor's result set
@@ -71,7 +64,7 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     # setting ensures we always read result sets fully into memory all in one
     # go.
     can_use_chunked_reads = False
-    uses_savepoints = savepoints
+    uses_savepoints = uses_savepoints
 
 class DatabaseOperations(BaseDatabaseOperations):
     def date_extract_sql(self, lookup_type, field_name):
@@ -102,15 +95,12 @@ class DatabaseOperations(BaseDatabaseOperations):
     def no_limit_value(self):
         return -1
 
-    @savepoint_dec
     def savepoint_create_sql(self, sid):
         return "SAVEPOINT " + self.quote_name(sid)
 
-    @savepoint_dec
     def savepoint_rollback_sql(self, sid):
         return "ROLLBACK TO SAVEPOINT " + self.quote_name(sid)
 
-    @savepoint_dec
     def savepoint_commit_sql(self, sid):
         return "RELEASE SAVEPOINT " + self.quote_name(sid)
 
@@ -183,6 +173,9 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         self.creation = DatabaseCreation(self)
         self.introspection = DatabaseIntrospection(self)
         self.validation = BaseDatabaseValidation(self)
+
+        if Database.sqlite_version_info >= (3,6,8):
+            self.features.uses_savepoints = True
 
     def _cursor(self):
         if self.connection is None:
